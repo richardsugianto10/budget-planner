@@ -1,0 +1,23 @@
+name: budget-planner-api
+service:
+  name: budget-planner-api
+  ports:
+    - port: 3000
+      protocol: http
+  routes:
+    - path: /
+      protocol: http
+  env:
+    - name: NODE_ENV
+      value: production
+    - name: DATABASE_URL
+      value: postgresql://neondb_owner:npg_woBfvjpC1r4k@ep-tiny-boat-a1cnkt7n-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+    - name: PORT
+      value: "3000"
+  scale:
+    horizontal:
+      min: 1
+      max: 1
+  regions: ["sin"]
+  buildCommand: npm install
+  startCommand: npm start 
