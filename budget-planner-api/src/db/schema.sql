@@ -2,10 +2,37 @@
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
+    username VARCHAR(100),
     password_hash VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Add display_picture column to users table if it doesn't exist
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' 
+        AND column_name = 'display_picture'
+    ) THEN
+        ALTER TABLE users ADD COLUMN display_picture VARCHAR(255);
+    END IF;
+END $$;
+
+-- Add username column to users table if it doesn't exist
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' 
+        AND column_name = 'username'
+    ) THEN
+        ALTER TABLE users ADD COLUMN username VARCHAR(100);
+    END IF;
+END $$;
 
 -- Create categories table
 CREATE TABLE categories (

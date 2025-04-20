@@ -1,14 +1,5 @@
 <template>
   <div class="charts-container">
-    <div class="chart-header">
-      <h2>Financial Overview</h2>
-      <select v-model="selectedPeriod" class="period-select">
-        <option value="week">This Week</option>
-        <option value="month">This Month</option>
-        <option value="year">This Year</option>
-      </select>
-    </div>
-
     <div class="charts-grid">
       <div class="chart-wrapper">
         <h3>Income vs Expenses</h3>
@@ -71,8 +62,11 @@ ChartJS.register(
   ArcElement
 )
 
+const props = defineProps<{
+  period: string
+}>()
+
 const authStore = useAuthStore()
-const selectedPeriod = ref('month')
 const stats = ref({
   daily: [],
   categories: []
@@ -97,13 +91,13 @@ const lineOptions = {
     y: {
       beginAtZero: true,
       ticks: {
-        callback: (value: number) => {
+        callback: function(tickValue: number | string) {
           return new Intl.NumberFormat('id-ID', {
             style: 'currency',
             currency: 'IDR',
             minimumFractionDigits: 0,
             maximumFractionDigits: 0
-          }).format(value)
+          }).format(Number(tickValue))
         }
       }
     }
@@ -200,13 +194,12 @@ const fetchStats = async () => {
   error.value = ''
   
   try {
-    console.log('Fetching stats for period:', selectedPeriod.value)
-    const response = await axios.get(`http://localhost:3000/api/transactions/stats?period=${selectedPeriod.value}`, {
+    console.log('Fetching stats for period:', props.period)
+    const response = await axios.get(`http://localhost:3000/api/transactions/stats?period=${props.period}`, {
       headers: { Authorization: `Bearer ${authStore.token}` }
     })
     console.log('Stats response:', response.data)
     
-    // Use the API response structure directly
     stats.value = {
       daily: Array.isArray(response.data?.daily) ? response.data.daily : [],
       categories: Array.isArray(response.data?.categories) ? response.data.categories : []
@@ -225,8 +218,8 @@ const fetchStats = async () => {
   }
 }
 
-// Watch for period changes
-watch(selectedPeriod, () => {
+// Watch for period changes from parent
+watch(() => props.period, () => {
   fetchStats()
 })
 
@@ -245,92 +238,58 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 .charts-container {
+  width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
   background: white;
   border-radius: 12px;
   padding: 1.5rem;
-  overflow: hidden;
-}
-
-.chart-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  flex-shrink: 0;
-
-  h2 {
-    color: #2d3748;
-    font-size: 1.25rem;
-    margin: 0;
-  }
-}
-
-.period-select {
-  padding: 0.5rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  color: #4a5568;
-  font-size: 0.875rem;
-  background-color: white;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    border-color: #cbd5e0;
-  }
-
-  &:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-  }
+  box-sizing: border-box;
 }
 
 .charts-grid {
   flex: 1;
   display: grid;
-  grid-template-rows: auto auto;
-  gap: 2rem;
-  overflow-y: auto;
-  padding-right: 0.5rem;
+  grid-template-rows: 1fr 1fr;
+  gap: 1.5rem;
   min-height: 0;
+  width: 100%;
 }
 
 .chart-wrapper {
-  position: relative;
-  padding: 1.5rem;
+  width: 100%;
   background: #f8fafc;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
-  height: 400px;
+  padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  margin-bottom: 0.5rem;
+  height: 100%;
+  min-height: 300px;
+  box-sizing: border-box;
 
   h3 {
     color: #4a5568;
     font-size: 1rem;
     font-weight: 500;
-    margin: 0 0 1.5rem 0;
+    margin: 0 0 1rem 0;
   }
 }
 
 .chart-container {
-  position: relative;
   flex: 1;
-  min-height: 320px;
+  position: relative;
   width: 100%;
-  margin-top: 0.5rem;
+  height: 100%;
+  min-height: 250px;
 
   .chart {
     position: absolute;
     top: 0;
     left: 0;
-    right: 0;
-    bottom: 0;
+    width: 100%;
+    height: 100%;
   }
 }
 
@@ -344,40 +303,22 @@ onUnmounted(() => {
   color: #718096;
   font-size: 0.875rem;
   text-align: center;
-  padding: 2rem;
+  padding: 1rem;
 }
 
 .error-state {
   color: #e53e3e;
 }
 
-.charts-grid::-webkit-scrollbar {
-  width: 8px;
-}
-
-.charts-grid::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
-}
-
-.charts-grid::-webkit-scrollbar-thumb {
-  background: #cbd5e0;
-  border-radius: 4px;
-}
-
-.charts-grid::-webkit-scrollbar-thumb:hover {
-  background: #a0aec0;
-}
-
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .charts-grid {
     grid-template-rows: auto auto;
-    gap: 1.5rem;
-    padding-right: 0.5rem;
+    gap: 1rem;
   }
 
   .chart-wrapper {
-    height: 400px;
+    min-height: 250px;
+    padding: 1rem;
   }
 }
 </style> 

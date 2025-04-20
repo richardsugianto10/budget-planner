@@ -70,7 +70,8 @@ router.post(
   '/register',
   [
     body('email').isEmail().normalizeEmail(),
-    body('password').isLength({ min: 6 })
+    body('password').isLength({ min: 6 }),
+    body('username').isLength({ min: 3 }).trim().escape()
   ],
   async (req, res) => {
     try {
@@ -80,16 +81,17 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { email, password } = req.body;
+      const { email, password, username } = req.body;
 
       // Check if user already exists
       const existingUser = await pool.query(
-        'SELECT * FROM users WHERE email = $1',
-        [email]
+        'SELECT * FROM users WHERE email = $1 OR username = $2',
+        [email, username]
       );
 
       if (existingUser.rows.length > 0) {
-        return res.status(400).json({ message: 'User already exists' });
+        const field = existingUser.rows[0].email === email ? 'email' : 'username';
+        return res.status(400).json({ message: `User with this ${field} already exists` });
       }
 
       // Hash password
@@ -98,13 +100,13 @@ router.post(
 
       // Create new user
       const newUser = await pool.query(
-        'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email',
-        [email, hashedPassword]
+        'INSERT INTO users (email, username, password_hash) VALUES ($1, $2, $3) RETURNING id, email, username',
+        [email, username, hashedPassword]
       );
 
       // Generate JWT token
       const token = jwt.sign(
-        { userId: newUser.rows[0].id, email },
+        { userId: newUser.rows[0].id, email, username },
         process.env.JWT_SECRET,
         { expiresIn: '24h' }
       );
@@ -113,7 +115,8 @@ router.post(
         token,
         user: {
           id: newUser.rows[0].id,
-          email: newUser.rows[0].email
+          email: newUser.rows[0].email,
+          username: newUser.rows[0].username
         }
       });
     } catch (error) {
@@ -149,7 +152,7 @@ router.post('/logout', authMiddleware, async (req, res) => {
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const userResult = await pool.query(
-      'SELECT id, email FROM users WHERE id = $1',
+      'SELECT id, email, username, display_picture FROM users WHERE id = $1',
       [req.user.userId]
     );
 
@@ -160,6 +163,60 @@ router.get('/me', authMiddleware, async (req, res) => {
     res.json({ user: userResult.rows[0] });
   } catch (error) {
     console.error('Get user error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update profile route
+router.put('/update-profile', authMiddleware, async (req, res) => {
+  try {
+    const { username, password, display_picture } = req.body;
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+
+    if (username) {
+      updates.push(`username = $${paramCount}`);
+      values.push(username);
+      paramCount++;
+    }
+
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+      updates.push(`password_hash = $${paramCount}`);
+      values.push(hashedPassword);
+      paramCount++;
+    }
+
+    if (display_picture) {
+      updates.push(`display_picture = $${paramCount}`);
+      values.push(display_picture);
+      paramCount++;
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ message: 'No updates provided' });
+    }
+
+    values.push(req.user.userId);
+
+    const result = await pool.query(
+      `UPDATE users 
+       SET ${updates.join(', ')}, 
+           updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $${paramCount}
+       RETURNING id, email, username, display_picture`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ user: result.rows[0] });
+  } catch (error) {
+    console.error('Update profile error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

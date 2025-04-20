@@ -4,7 +4,19 @@
       <h1>Create Account</h1>
       <p class="subtitle">Start managing your finances today</p>
 
-      <form @submit.prevent="handleRegister" class="auth-form">
+      <form @submit.prevent="handleSubmit" class="auth-form">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input
+            type="text"
+            id="username"
+            v-model="username"
+            required
+            class="form-input"
+            placeholder="Choose a username"
+          />
+        </div>
+
         <div class="form-group">
           <label for="email">Email</label>
           <input
@@ -41,7 +53,7 @@
           />
         </div>
 
-        <p v-if="error" class="error-message">{{ error }}</p>
+        <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
 
         <button type="submit" class="submit-button" :disabled="loading">
           {{ loading ? 'Creating Account...' : 'Create Account' }}
@@ -64,26 +76,31 @@ import { useAuthStore } from '../stores/auth'
 const router = useRouter()
 const authStore = useAuthStore()
 
+const username = ref('')
 const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
-const error = ref('')
+const errorMessage = ref('')
 const loading = ref(false)
 
-const handleRegister = async () => {
+const handleSubmit = async () => {
   try {
-    error.value = ''
+    errorMessage.value = ''
     
     if (password.value !== confirmPassword.value) {
-      error.value = 'Passwords do not match'
+      errorMessage.value = 'Passwords do not match'
       return
     }
 
     loading.value = true
-    await authStore.register(email.value, password.value)
-    router.push('/')
-  } catch (err) {
-    error.value = 'Failed to create account. Please try again.'
+    await authStore.register({
+      username: username.value,
+      email: email.value,
+      password: password.value
+    })
+    router.push('/dashboard')
+  } catch (error: any) {
+    errorMessage.value = error.response?.data?.message || 'Registration failed'
   } finally {
     loading.value = false
   }

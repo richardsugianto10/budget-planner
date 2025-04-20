@@ -3,6 +3,7 @@ const cors = require('cors');
 const authRoutes = require('./routes/auth');
 const transactionRoutes = require('./routes/transactions');
 const categoryRoutes = require('./routes/categories');
+const uploadRoutes = require('./routes/upload');
 const checkBlacklist = require('./middleware/checkBlacklist');
 
 require('dotenv').config();
@@ -26,6 +27,7 @@ app.use(checkBlacklist);
 app.use('/api/auth', authRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Health check route
 app.get('/health', (req, res) => {

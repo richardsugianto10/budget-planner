@@ -3,18 +3,72 @@ import './assets/main.css'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import axios from 'axios'
-import { FontAwesomeIcon } from './plugins/fontawesome'
 
 import App from './App.vue'
 import router from './router'
 import { useAuthStore } from './stores/auth'
 
-const app = createApp(App)
-const pinia = createPinia()
+/* Import Font Awesome core and CSS */
+import { library } from '@fortawesome/fontawesome-svg-core'
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
+import '@fortawesome/fontawesome-svg-core/styles.css'
+import { config } from '@fortawesome/fontawesome-svg-core'
+import { 
+  faUser, 
+  faCamera, 
+  faSignOutAlt, 
+  faTimes,
+  faSpinner,
+  faArrowRightFromBracket,
+  faXmark,
+  faChartPie,
+  faExchangeAlt,
+  faTag,
+  faChevronLeft,
+  faPlus,
+  faWallet,
+  faArrowUp,
+  faArrowDown,
+  faReceipt,
+  faMoneyBillWave,
+  faChartLine,
+  faCalendar
+} from '@fortawesome/free-solid-svg-icons'
 
-app.use(pinia)
+// Prevent Font Awesome from auto-replacing <i> tags
+config.autoReplaceSvg = false
+config.styleDefault = 'solid'
+
+/* Add icons to the library */
+library.add(
+  faUser,
+  faCamera,
+  faSignOutAlt,
+  faTimes,
+  faSpinner,
+  faArrowRightFromBracket,
+  faXmark,
+  faChartPie,
+  faExchangeAlt,
+  faTag,
+  faChevronLeft,
+  faPlus,
+  faWallet,
+  faArrowUp,
+  faArrowDown,
+  faReceipt,
+  faMoneyBillWave,
+  faChartLine,
+  faCalendar
+)
+
+const app = createApp(App)
+
+app.use(createPinia())
 app.use(router)
-app.component('font-awesome-icon', FontAwesomeIcon)
+
+/* Register Font Awesome component globally */
+app.component('FontAwesomeIcon', FontAwesomeIcon)
 
 // Initialize auth store
 const authStore = useAuthStore()

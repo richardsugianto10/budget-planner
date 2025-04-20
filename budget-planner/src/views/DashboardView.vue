@@ -1,268 +1,306 @@
 <template>
   <div class="dashboard">
-    <!-- Sidebar -->
-    <aside class="sidebar" :class="{ collapsed: isSidebarCollapsed }">
-      <div class="sidebar-header">
-        <h1>Budget Planner</h1>
-      </div>
-      <nav class="sidebar-nav">
-        <button class="nav-item active">
-          <font-awesome-icon icon="chart-pie" />
-          <span v-show="!isSidebarCollapsed">Overview</span>
-        </button>
-        <button class="nav-item">
-          <font-awesome-icon icon="exchange-alt" />
-          <span v-show="!isSidebarCollapsed">Transactions</span>
-        </button>
-        <button class="nav-item">
-          <font-awesome-icon icon="tag" />
-          <span v-show="!isSidebarCollapsed">Categories</span>
-        </button>
-      </nav>
-      <div class="sidebar-footer">
-        <button @click="logout" class="logout-button">
-          <font-awesome-icon icon="sign-out-alt" />
-          <span v-show="!isSidebarCollapsed">Logout</span>
+    <div class="header">
+      <h1>Dashboard</h1>
+      <div class="header-actions">
+        <button class="add-button" @click="showAddTransactionModal = true">
+          <font-awesome-icon icon="plus" />
+          <span>Add Transaction</span>
         </button>
       </div>
-    </aside>
+    </div>
 
-    <!-- Sidebar Toggle Button -->
-    <button 
-      class="sidebar-toggle"
-      :class="{ 'sidebar-collapsed': isSidebarCollapsed }"
-      @click="toggleSidebar"
-    >
-      <font-awesome-icon :icon="isSidebarCollapsed ? 'chevron-right' : 'chevron-left'" />
-    </button>
-
-    <!-- Main Content -->
-    <main class="main-content" :class="{ 'sidebar-collapsed': isSidebarCollapsed }">
-      <!-- Header with Balance Overview -->
-      <div class="balance-overview">
-        <div class="balance-card main-balance">
-          <div class="balance-icon">
-            <i class="fas fa-wallet"></i>
+    <div class="stats-grid" :class="{ 'sidebar-expanded': !isSidebarCollapsed }">
+      <div class="stat-card" @click="showDetailsModal('balance')">
+        <div class="stat-header">
+          <div class="stat-icon balance">
+            <font-awesome-icon icon="wallet" />
           </div>
-          <div class="balance-info">
-            <h3>Total Balance</h3>
-            <p :class="['amount', totalBalance >= 0 ? 'positive' : 'negative']">
-              {{ formatCurrency(totalBalance) }}
-            </p>
-          </div>
+          <h3>Total Balance</h3>
         </div>
-
-        <div class="balance-card income">
-          <div class="balance-icon">
-            <i class="fas fa-arrow-up"></i>
-          </div>
-          <div class="balance-info">
-            <h3>Monthly Income</h3>
-            <p class="amount">{{ formatCurrency(monthlyIncome) }}</p>
-          </div>
+        <div class="stat-value">Rp{{ formatNumber(totalBalance) }}</div>
+        <div class="stat-trend" v-if="hasTransactions" :class="{ 
+          'positive': balanceChangePercent > 0,
+          'negative': balanceChangePercent < 0,
+          'neutral': balanceChangePercent === 0 
+        }">
+          <font-awesome-icon :icon="balanceChangePercent > 0 ? 'arrow-up' : balanceChangePercent < 0 ? 'arrow-down' : 'equals'" />
+          {{ formatNumber(Math.abs(balanceChangePercent)) }}% vs {{ timeRangeText }}
         </div>
-
-        <div class="balance-card expense">
-          <div class="balance-icon">
-            <i class="fas fa-arrow-down"></i>
-          </div>
-          <div class="balance-info">
-            <h3>Monthly Expenses</h3>
-            <p class="amount">{{ formatCurrency(monthlyExpenses) }}</p>
-          </div>
+        <div class="stat-trend new-user" v-else>
+          Welcome! Add your first transaction
         </div>
       </div>
 
-      <!-- Charts and Transactions Grid -->
-      <div class="dashboard-grid">
-        <!-- Left side - Charts -->
-        <div class="charts-panel">
-          <DashboardCharts />
+      <div class="stat-card" @click="showDetailsModal('income')">
+        <div class="stat-header">
+          <div class="stat-icon income">
+            <font-awesome-icon icon="arrow-up" />
+          </div>
+          <h3>Total Income</h3>
         </div>
+        <div class="stat-value income">Rp{{ formatNumber(totalIncome) }}</div>
+        <div class="stat-trend" v-if="hasTransactions" :class="{ 
+          'positive': incomeChangePercent > 0,
+          'negative': incomeChangePercent < 0,
+          'neutral': incomeChangePercent === 0 
+        }">
+          <font-awesome-icon :icon="incomeChangePercent > 0 ? 'arrow-up' : incomeChangePercent < 0 ? 'arrow-down' : 'equals'" />
+          {{ formatNumber(Math.abs(incomeChangePercent)) }}% vs {{ timeRangeText }}
+        </div>
+        <div class="stat-trend new-user" v-else>
+          Track your earnings here
+        </div>
+      </div>
 
-        <!-- Right side - Recent Transactions -->
-        <div class="transactions-panel">
-          <div class="panel-header">
-            <h2>Recent Transactions</h2>
-            <button @click="showAddTransaction = true" class="add-button">
-              <i class="fas fa-plus"></i>
-              Add Transaction
+      <div class="stat-card" @click="showDetailsModal('expense')">
+        <div class="stat-header">
+          <div class="stat-icon expense">
+            <font-awesome-icon icon="arrow-down" />
+          </div>
+          <h3>Total Expenses</h3>
+        </div>
+        <div class="stat-value expense">Rp{{ formatNumber(totalExpenses) }}</div>
+        <div class="stat-trend" v-if="hasTransactions" :class="{ 
+          'positive': expenseChangePercent < 0,
+          'negative': expenseChangePercent > 0,
+          'neutral': expenseChangePercent === 0 
+        }">
+          <font-awesome-icon :icon="expenseChangePercent < 0 ? 'arrow-down' : expenseChangePercent > 0 ? 'arrow-up' : 'equals'" />
+          {{ formatNumber(Math.abs(expenseChangePercent)) }}% vs {{ timeRangeText }}
+        </div>
+        <div class="stat-trend new-user" v-else>
+          Monitor your spending here
+        </div>
+      </div>
+    </div>
+
+    <div class="content-grid">
+      <div class="charts-section">
+        <div class="section-header">
+          <h2>Financial Overview</h2>
+          <select v-model="timeRange" class="time-range-select">
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="year">This Year</option>
+          </select>
+        </div>
+        <div class="charts-content">
+          <DashboardCharts :period="timeRange" />
+        </div>
+      </div>
+
+      <div class="recent-transactions">
+        <div class="section-header">
+          <h2>Recent Transactions</h2>
+          <router-link to="/transactions" class="view-all">View All</router-link>
+        </div>
+        
+        <div class="transactions-list">
+          <div v-if="error" class="error-state">
+            <font-awesome-icon icon="exclamation-circle" class="error-icon" />
+            <p>{{ error }}</p>
+            <button class="retry-button" @click="transactionStore.fetchTransactions()">
+              Try Again
             </button>
           </div>
+          
+          <div v-else-if="isLoading" class="loading-state">
+            <div class="loading-spinner"></div>
+            <p>Loading transactions...</p>
+          </div>
 
-          <!-- Empty state -->
-          <div v-if="!hasTransactions" class="empty-state">
-            <img src="../assets/empty-state.svg" alt="No transactions" class="empty-state-icon" />
-            <h3>No transactions yet</h3>
-            <p>Start tracking your finances by adding your first transaction.</p>
-            <button @click="showAddTransaction = true" class="add-button">
+          <div v-else-if="recentTransactions.length === 0" class="empty-state">
+            <font-awesome-icon icon="receipt" class="empty-icon" />
+            <p>No transactions yet</p>
+            <button class="add-button small" @click="showAddTransactionModal = true">
               Add Your First Transaction
             </button>
           </div>
 
-          <!-- Transactions list -->
-          <div v-else class="transactions-list">
-            <div 
-              v-for="transaction in transactions" 
-              :key="transaction.id" 
-              class="transaction-item"
-              @click="selectedTransaction = transaction"
-            >
-              <div class="transaction-icon" :style="{ backgroundColor: transaction.category_color + '20' }">
-                <i class="fas" :class="getTransactionIcon(transaction.category_name)" :style="{ color: transaction.category_color }"></i>
-              </div>
+          <div v-else v-for="transaction in recentTransactions" :key="transaction.id" 
+               class="transaction-item" 
+               @click="showTransactionDetails(transaction)">
+            <div class="transaction-icon" :class="transaction.type">
+              <font-awesome-icon :icon="getTransactionIcon(transaction.category)" />
+            </div>
+            <div class="transaction-details">
               <div class="transaction-info">
-                <div class="transaction-main">
-                  <span class="transaction-name">{{ transaction.description }}</span>
-                  <span :class="['transaction-amount', transaction.type]">
-                    {{ formatCurrency(transaction.amount, transaction.currency) }}
-                  </span>
-                </div>
-                <div class="transaction-details">
-                  <span class="transaction-date">
-                    <i class="far fa-calendar"></i>
-                    {{ formatDate(transaction.date) }}
-                  </span>
-                  <span 
-                    v-if="transaction.category_name" 
-                    class="transaction-category"
-                    :style="{ backgroundColor: transaction.category_color + '20', color: transaction.category_color }"
-                  >
-                    {{ transaction.category_name }}
-                  </span>
-                  <span v-if="transaction.currency !== 'IDR'" class="transaction-conversion">
-                    {{ formatCurrency(transaction.amount_idr, 'IDR') }}
-                  </span>
-                </div>
+                <span class="transaction-category">{{ transaction.category_name || transaction.category }}</span>
+                <span class="transaction-description">{{ transaction.description }}</span>
+                <span class="transaction-date">{{ formatDate(transaction.date) }}</span>
+              </div>
+              <div class="transaction-amount" :class="transaction.type">
+                {{ transaction.type === 'income' ? '+' : '-' }}{{ formatCurrency(transaction.amount, transaction.currency || 'IDR') }}
               </div>
             </div>
           </div>
         </div>
       </div>
-    </main>
+    </div>
 
     <!-- Add Transaction Modal -->
-    <div v-if="showAddTransaction" class="modal-overlay" @click.self="showAddTransaction = false">
-      <div class="modal-content">
+    <div v-if="showAddTransactionModal" class="modal-backdrop" @click="showAddTransactionModal = false">
+      <div class="modal-content" @click.stop>
         <div class="modal-header">
-          <h2>{{ hasTransactions ? 'Add Transaction' : 'Add Your First Transaction' }}</h2>
-          <button class="close-button" @click="showAddTransaction = false">
-            <i class="fas fa-times"></i>
+          <h2>Add Transaction</h2>
+          <button class="close-button" @click="showAddTransactionModal = false">
+            <font-awesome-icon icon="times" />
           </button>
         </div>
-
-        <form @submit.prevent="addTransaction" class="transaction-form">
+        
+        <form @submit.prevent="handleSubmit" class="transaction-form">
           <div class="form-group">
-            <label for="transactionDescription">Description</label>
-            <input
-              type="text"
-              id="transactionDescription"
-              v-model="newTransaction.description"
-              placeholder="e.g., Salary, Rent, Groceries"
-              class="form-input"
+            <label for="type">Type</label>
+            <select id="type" v-model="newTransaction.type" required>
+              <option value="income">Income</option>
+              <option value="expense">Expense</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="amount">Amount</label>
+            <input 
+              type="number" 
+              id="amount" 
+              v-model="newTransaction.amount" 
+              step="0.01" 
+              min="0" 
               required
             />
           </div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label for="transactionAmount">Amount</label>
-              <div class="amount-input">
-                <span class="currency-symbol">{{ getCurrencySymbol(newTransaction.currency) }}</span>
-                <input
-                  type="text"
-                  id="transactionAmount"
-                  v-model="newTransaction.amount"
-                  placeholder="0.00"
-                  class="form-input"
-                  required
-                  @input="validateAmount"
-                  @keypress="allowNumbersAndDot"
-                />
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="transactionCurrency">Currency</label>
-              <select id="transactionCurrency" v-model="newTransaction.currency" class="form-input" required>
-                <option v-for="curr in currencies" :key="curr.code" :value="curr.code">
-                  {{ curr.symbol }} - {{ curr.name }}
-                </option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label for="transactionType">Type</label>
-              <select id="transactionType" v-model="newTransaction.type" class="form-input" required>
-                <option value="income">Income</option>
-                <option value="expense">Expense</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="transactionCategory">Category</label>
-              <select id="transactionCategory" v-model="newTransaction.categoryId" class="form-input" required>
-                <option value="">Select a category</option>
-                <option 
-                  v-for="category in filteredCategories" 
-                  :key="category.id" 
-                  :value="category.id"
-                >
-                  {{ category.name }}
-                </option>
-              </select>
-            </div>
+          <div class="form-group">
+            <label for="category">Category</label>
+            <select id="category" v-model="newTransaction.category" required>
+              <option value="">Select a category</option>
+              <option v-for="category in categories" :key="category" :value="category">
+                {{ category }}
+              </option>
+            </select>
           </div>
 
           <div class="form-group">
-            <label for="transactionDate">Date</label>
-            <input
-              type="date"
-              id="transactionDate"
-              v-model="newTransaction.date"
-              class="form-input"
+            <label for="date">Date</label>
+            <input 
+              type="date" 
+              id="date" 
+              v-model="newTransaction.date" 
               required
             />
           </div>
 
-          <p v-if="transactionError" class="error-message">{{ transactionError }}</p>
+          <div class="form-group">
+            <label for="description">Description</label>
+            <textarea 
+              id="description" 
+              v-model="newTransaction.description" 
+              rows="3"
+            ></textarea>
+          </div>
 
-          <div class="modal-actions">
-            <button type="button" class="cancel-button" @click="showAddTransaction = false">Cancel</button>
-            <button type="submit" class="submit-button" :disabled="loading">
-              {{ loading ? 'Adding...' : 'Add Transaction' }}
+          <div class="form-actions">
+            <button type="button" class="cancel-button" @click="showAddTransactionModal = false">
+              Cancel
+            </button>
+            <button type="submit" class="submit-button">
+              Add Transaction
             </button>
           </div>
         </form>
       </div>
     </div>
 
+    <!-- Details Modal -->
+    <div v-if="showDetails" class="modal-backdrop" @click="showDetails = false">
+      <div class="modal-content details-modal" @click.stop>
+        <div class="modal-header">
+          <h2>{{ detailsTitle }}</h2>
+          <button class="close-button" @click="showDetails = false">
+            <font-awesome-icon icon="times" />
+          </button>
+        </div>
+        
+        <div class="details-content">
+          <div class="details-summary">
+            <div class="summary-item">
+              <span class="label">Current Total</span>
+              <span class="value" :class="changeClass">{{ formatCurrency(currentTotal) }}</span>
+            </div>
+            <div class="summary-item">
+              <span class="label">Last Month</span>
+              <span class="value">{{ formatCurrency(lastMonthTotal) }}</span>
+            </div>
+            <div class="summary-item">
+              <span class="label">Change</span>
+              <span class="value" :class="changeClass">{{ formatNumber(Math.abs(changePercent)) }}%</span>
+            </div>
+          </div>
+
+          <div class="details-chart">
+            <h3>Monthly Trend</h3>
+            <div class="chart-placeholder">
+              <!-- Chart component will be added here -->
+              <p>Monthly trend visualization coming soon</p>
+            </div>
+          </div>
+
+          <div class="details-list">
+            <h3>Recent Transactions</h3>
+            <div v-if="filteredTransactions.length === 0" class="empty-state">
+              <p>No transactions found</p>
+            </div>
+            <div v-else class="transactions-list">
+              <div v-for="transaction in filteredTransactions" :key="transaction.id" class="transaction-item">
+                <div class="transaction-icon" :class="transaction.type">
+                  <font-awesome-icon :icon="getTransactionIcon(transaction.category)" />
+                </div>
+                <div class="transaction-details">
+                  <div class="transaction-info">
+                    <span class="transaction-category">{{ transaction.category_name || 'Uncategorized' }}</span>
+                    <span class="transaction-description">{{ transaction.description }}</span>
+                    <span class="transaction-date">{{ formatDate(transaction.date) }}</span>
+                  </div>
+                  <div class="transaction-amount" :class="transaction.type">
+                    {{ transaction.type === 'income' ? '+' : '-' }}{{ formatCurrency(transaction.amount, transaction.currency || 'IDR') }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Transaction Details Modal -->
-    <div v-if="selectedTransaction" class="modal-overlay" @click.self="selectedTransaction = null">
-      <div class="modal-content transaction-details-modal">
+    <div v-if="selectedTransaction" class="modal-backdrop" @click="selectedTransaction = null">
+      <div class="modal-content transaction-details-modal" @click.stop>
         <div class="modal-header">
           <h2>Transaction Details</h2>
           <button class="close-button" @click="selectedTransaction = null">
-            <i class="fas fa-times"></i>
+            <font-awesome-icon icon="times" />
           </button>
         </div>
+        
         <div class="transaction-details-content">
-          <div class="transaction-details-icon" :style="{ backgroundColor: selectedTransaction.category_color + '20' }">
-            <i class="fas" :class="getTransactionIcon(selectedTransaction.category_name)" :style="{ color: selectedTransaction.category_color }"></i>
+          <div class="transaction-details-icon" :style="{ backgroundColor: (selectedTransaction.category_color || '#718096') + '20' }">
+            <font-awesome-icon :icon="getTransactionIcon(selectedTransaction.category_name || selectedTransaction.category)" 
+                             :style="{ color: selectedTransaction.category_color || '#718096' }" />
           </div>
           
           <div class="details-grid">
             <div class="detail-item">
               <label>Description</label>
-              <p>{{ selectedTransaction.description }}</p>
+              <p>{{ selectedTransaction.description || 'No description' }}</p>
             </div>
             
             <div class="detail-item">
               <label>Amount</label>
               <p :class="['amount', selectedTransaction.type]">
-                {{ formatCurrency(selectedTransaction.amount, selectedTransaction.currency) }}
+                {{ formatCurrency(selectedTransaction.amount, selectedTransaction.currency || 'IDR') }}
+                <small v-if="selectedTransaction.currency !== 'IDR'" class="conversion">
+                  ({{ formatCurrency(selectedTransaction.amount_idr || selectedTransaction.amount, 'IDR') }})
+                </small>
               </p>
             </div>
 
@@ -275,9 +313,8 @@
 
             <div class="detail-item">
               <label>Category</label>
-              <p class="category-badge" 
-                 :style="{ backgroundColor: selectedTransaction.category_color + '20', color: selectedTransaction.category_color }">
-                {{ selectedTransaction.category_name }}
+              <p class="category-text">
+                {{ selectedTransaction.category_name || selectedTransaction.category || 'Uncategorized' }}
               </p>
             </div>
 
@@ -288,7 +325,7 @@
 
             <div v-if="selectedTransaction.currency !== 'IDR'" class="detail-item">
               <label>Amount in IDR</label>
-              <p>{{ formatCurrency(selectedTransaction.amount_idr, 'IDR') }}</p>
+              <p>{{ formatCurrency(selectedTransaction.amount_idr || selectedTransaction.amount, 'IDR') }}</p>
             </div>
           </div>
 
@@ -297,7 +334,7 @@
               class="delete-button" 
               @click="deleteTransaction(selectedTransaction.id)"
             >
-              <font-awesome-icon icon="trash-alt" />
+              <font-awesome-icon icon="trash" />
               Delete Transaction
             </button>
           </div>
@@ -309,733 +346,765 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '../stores/auth'
-import DashboardCharts from '../components/DashboardCharts.vue'
-import axios from 'axios'
-import { defineEmitter } from '../utils/event-bus'
+import { useTransactionStore } from '@/stores/transaction'
+import DashboardCharts from '@/components/DashboardCharts.vue'
+import { formatNumber, formatDate, formatCurrency } from '@/utils/formatters'
+import { getTransactionIcon } from '@/utils/icons'
 
-const router = useRouter()
-const authStore = useAuthStore()
+interface Transaction {
+  id: string
+  type: 'income' | 'expense'
+  amount: number
+  category: string
+  date: string
+  description?: string
+  category_name?: string
+  category_color?: string
+  currency?: string
+  amount_idr?: number
+  original_amount?: number
+  original_currency?: string
+  exchange_rate?: number
+}
 
-const showAddTransaction = ref(false)
-const transactions = ref([])
-const categories = ref([])
-const transactionError = ref('')
-const loading = ref(false)
-const selectedTransaction = ref(null)
-const isSidebarCollapsed = ref(false)
+const props = defineProps<{
+  isSidebarCollapsed: boolean
+}>()
+
+const timeRange = ref('month')
+const transactionStore = useTransactionStore()
+const showAddTransactionModal = ref(false)
+const isLoading = ref(false)
+const error = ref<string | null>(null)
 
 const newTransaction = ref({
+  type: 'expense' as 'income' | 'expense',
+  amount: 0,
+  category: '',
+  date: new Date().toISOString().split('T')[0],
   description: '',
-  amount: '',
-  type: 'expense',
-  categoryId: '',
-  currency: 'IDR',
-  date: new Date().toISOString().split('T')[0]
+  currency: 'IDR'
 })
 
-const currencies = ref([
-  { code: 'IDR', symbol: 'Rp', name: 'Indonesian Rupiah' },
-  { code: 'USD', symbol: '$', name: 'US Dollar' },
-  { code: 'EUR', symbol: '€', name: 'Euro' },
-  { code: 'GBP', symbol: '£', name: 'British Pound' },
-  { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
-  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
-  { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' },
-])
-
-const emitter = defineEmitter()
-
-const getCurrencySymbol = (code: string) => {
-  return currencies.value.find(c => c.code === code)?.symbol || code
-}
-
-const getTransactionIcon = (category: string) => {
-  const iconMap: { [key: string]: string } = {
-    Salary: 'fa-money-bill-wave',
-    Freelance: 'fa-laptop',
-    Investments: 'fa-chart-line',
-    Housing: 'fa-home',
-    Transportation: 'fa-car',
-    Food: 'fa-utensils',
-    Utilities: 'fa-bolt',
-    Healthcare: 'fa-heartbeat',
-    Entertainment: 'fa-film',
-    Shopping: 'fa-shopping-bag',
-    Education: 'fa-graduation-cap',
-    'Other Income': 'fa-plus-circle',
-    'Other Expenses': 'fa-minus-circle'
-  }
-  return iconMap[category] || 'fa-receipt'
-}
-
-const hasTransactions = computed(() => transactions.value.length > 0)
-
-const filteredCategories = computed(() => {
-  return categories.value.filter(c => c.type === newTransaction.value.type)
-})
+const categories = [
+  'Salary',
+  'Freelance',
+  'Investments',
+  'Shopping',
+  'Food & Dining',
+  'Transportation',
+  'Entertainment',
+  'Utilities',
+  'Healthcare',
+  'Education'
+]
 
 const totalBalance = computed(() => {
-  return transactions.value.reduce((total, transaction) => {
-    // Ensure amounts are converted to numbers
-    const amount = Number(transaction.amount_idr) || 0
-    return total + (transaction.type === 'income' ? amount : -amount)
+  const now = new Date()
+  const currentDay = now.getDate()
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
+  
+  // Start of the week (Sunday)
+  const startOfWeek = new Date(now)
+  startOfWeek.setDate(currentDay - now.getDay())
+  startOfWeek.setHours(0, 0, 0, 0)
+  
+  // Start of the month
+  const startOfMonth = new Date(currentYear, currentMonth, 1)
+  
+  // Start of the year
+  const startOfYear = new Date(currentYear, 0, 1)
+  
+  let filteredTransactions = transactionStore.transactions
+  
+  switch (timeRange.value) {
+    case 'week':
+      filteredTransactions = transactionStore.transactions.filter(t => new Date(t.date) >= startOfWeek)
+      break
+    case 'month':
+      filteredTransactions = transactionStore.transactions.filter(t => new Date(t.date) >= startOfMonth)
+      break
+    case 'year':
+      filteredTransactions = transactionStore.transactions.filter(t => new Date(t.date) >= startOfYear)
+      break
+  }
+  
+  return filteredTransactions.reduce((total, t) => {
+    const amount = t.amount_idr || t.amount
+    return total + (t.type === 'income' ? amount : -amount)
   }, 0)
 })
 
-const monthlyIncome = computed(() => {
-  const currentMonth = new Date().getMonth()
-  return transactions.value
-    .filter(t => new Date(t.date).getMonth() === currentMonth && t.type === 'income')
-    .reduce((total, t) => {
-      // Ensure amounts are converted to numbers
-      const amount = Number(t.amount_idr) || 0
-      return total + amount
-    }, 0)
-})
-
-const monthlyExpenses = computed(() => {
-  const currentMonth = new Date().getMonth()
-  return transactions.value
-    .filter(t => new Date(t.date).getMonth() === currentMonth && t.type === 'expense')
-    .reduce((total, t) => {
-      // Ensure amounts are converted to numbers
-      const amount = Number(t.amount_idr) || 0
-      return total + amount
-    }, 0)
-})
-
-const formatCurrency = (amount: number, currency = 'IDR') => {
-  const currencyMap: { [key: string]: string } = {
-    IDR: 'id-ID',
-    USD: 'en-US',
-    EUR: 'de-DE',
-    GBP: 'en-GB',
-    JPY: 'ja-JP',
-    AUD: 'en-AU',
-    SGD: 'en-SG',
+const totalIncome = computed(() => {
+  const now = new Date()
+  const currentDay = now.getDate()
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
+  
+  // Start of the week (Sunday)
+  const startOfWeek = new Date(now)
+  startOfWeek.setDate(currentDay - now.getDay())
+  startOfWeek.setHours(0, 0, 0, 0)
+  
+  // Start of the month
+  const startOfMonth = new Date(currentYear, currentMonth, 1)
+  
+  // Start of the year
+  const startOfYear = new Date(currentYear, 0, 1)
+  
+  let filteredTransactions = transactionStore.transactions
+  
+  switch (timeRange.value) {
+    case 'week':
+      filteredTransactions = transactionStore.transactions.filter(t => new Date(t.date) >= startOfWeek)
+      break
+    case 'month':
+      filteredTransactions = transactionStore.transactions.filter(t => new Date(t.date) >= startOfMonth)
+      break
+    case 'year':
+      filteredTransactions = transactionStore.transactions.filter(t => new Date(t.date) >= startOfYear)
+      break
   }
+  
+  return filteredTransactions
+    .filter(t => t.type === 'income')
+    .reduce((total, t) => total + (t.amount_idr || t.amount), 0)
+})
 
-  return new Intl.NumberFormat(currencyMap[currency], {
-    style: 'currency',
-    currency: currency
-  }).format(amount)
-}
+const totalExpenses = computed(() => {
+  const now = new Date()
+  const currentDay = now.getDate()
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
+  
+  // Start of the week (Sunday)
+  const startOfWeek = new Date(now)
+  startOfWeek.setDate(currentDay - now.getDay())
+  startOfWeek.setHours(0, 0, 0, 0)
+  
+  // Start of the month
+  const startOfMonth = new Date(currentYear, currentMonth, 1)
+  
+  // Start of the year
+  const startOfYear = new Date(currentYear, 0, 1)
+  
+  let filteredTransactions = transactionStore.transactions
+  
+  switch (timeRange.value) {
+    case 'week':
+      filteredTransactions = transactionStore.transactions.filter(t => new Date(t.date) >= startOfWeek)
+      break
+    case 'month':
+      filteredTransactions = transactionStore.transactions.filter(t => new Date(t.date) >= startOfMonth)
+      break
+    case 'year':
+      filteredTransactions = transactionStore.transactions.filter(t => new Date(t.date) >= startOfYear)
+      break
+  }
+  
+  return filteredTransactions
+    .filter(t => t.type === 'expense')
+    .reduce((total, t) => total + (t.amount_idr || t.amount), 0)
+})
 
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
+const recentTransactions = computed(() => {
+  const now = new Date()
+  const currentDay = now.getDate()
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
+  
+  // Start of the week (Sunday)
+  const startOfWeek = new Date(now)
+  startOfWeek.setDate(currentDay - now.getDay())
+  startOfWeek.setHours(0, 0, 0, 0)
+  
+  // Start of the month
+  const startOfMonth = new Date(currentYear, currentMonth, 1)
+  
+  // Start of the year
+  const startOfYear = new Date(currentYear, 0, 1)
+  
+  let filteredTransactions = transactionStore.transactions
+  
+  switch (timeRange.value) {
+    case 'week':
+      filteredTransactions = transactionStore.transactions.filter(t => new Date(t.date) >= startOfWeek)
+      break
+    case 'month':
+      filteredTransactions = transactionStore.transactions.filter(t => new Date(t.date) >= startOfMonth)
+      break
+    case 'year':
+      filteredTransactions = transactionStore.transactions.filter(t => new Date(t.date) >= startOfYear)
+      break
+  }
+  
+  // Sort by date in descending order (most recent first)
+  return filteredTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+})
+
+const hasTransactions = computed(() => transactionStore.transactions.length > 0)
+
+const timeRangeText = computed(() => {
+  switch (timeRange.value) {
+    case 'week':
+      return 'last week'
+    case 'month':
+      return 'last month'
+    case 'year':
+      return 'last year'
+    default:
+      return 'last month'
+  }
+})
+
+const balanceChangePercent = computed(() => {
+  if (!hasTransactions.value) return 0
+  
+  const now = new Date()
+  const currentDay = now.getDate()
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
+  
+  let currentPeriodStart: Date
+  let previousPeriodStart: Date
+  let currentPeriodEnd: Date
+  let previousPeriodEnd: Date
+  
+  switch (timeRange.value) {
+    case 'week':
+      // Current week (Sunday to Saturday)
+      currentPeriodStart = new Date(now)
+      currentPeriodStart.setDate(currentDay - now.getDay())
+      currentPeriodStart.setHours(0, 0, 0, 0)
+      
+      currentPeriodEnd = new Date(currentPeriodStart)
+      currentPeriodEnd.setDate(currentPeriodStart.getDate() + 6)
+      currentPeriodEnd.setHours(23, 59, 59, 999)
+      
+      // Previous week (Sunday to Saturday)
+      previousPeriodStart = new Date(currentPeriodStart)
+      previousPeriodStart.setDate(previousPeriodStart.getDate() - 7)
+      previousPeriodEnd = new Date(currentPeriodStart)
+      previousPeriodEnd.setHours(23, 59, 59, 999)
+      break
+      
+    case 'month':
+      // Current month
+      currentPeriodStart = new Date(currentYear, currentMonth, 1)
+      currentPeriodEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999)
+      
+      // Previous month
+      previousPeriodStart = new Date(currentYear, currentMonth - 1, 1)
+      previousPeriodEnd = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999)
+      break
+      
+    case 'year':
+      // Current year
+      currentPeriodStart = new Date(currentYear, 0, 1)
+      currentPeriodEnd = new Date(currentYear, 11, 31, 23, 59, 59, 999)
+      
+      // Previous year
+      previousPeriodStart = new Date(currentYear - 1, 0, 1)
+      previousPeriodEnd = new Date(currentYear - 1, 11, 31, 23, 59, 59, 999)
+      break
+      
+    default:
+      currentPeriodStart = new Date(currentYear, currentMonth, 1)
+      currentPeriodEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999)
+      previousPeriodStart = new Date(currentYear, currentMonth - 1, 1)
+      previousPeriodEnd = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999)
+  }
+  
+  // Get current period's transactions
+  const currentPeriodTransactions = transactionStore.transactions.filter(t => {
+    const date = new Date(t.date)
+    return date >= currentPeriodStart && date <= currentPeriodEnd
   })
-}
+  
+  // Get previous period's transactions
+  const previousPeriodTransactions = transactionStore.transactions.filter(t => {
+    const date = new Date(t.date)
+    return date >= previousPeriodStart && date <= previousPeriodEnd
+  })
+  
+  // Calculate totals
+  const currentTotal = currentPeriodTransactions.reduce((total, t) => {
+    const amount = t.amount_idr || t.amount
+    return total + (t.type === 'income' ? amount : -amount)
+  }, 0)
+  
+  const previousTotal = previousPeriodTransactions.reduce((total, t) => {
+    const amount = t.amount_idr || t.amount
+    return total + (t.type === 'income' ? amount : -amount)
+  }, 0)
+  
+  // If there were no transactions in the previous period, return 100% increase if current period has transactions
+  if (previousTotal === 0) {
+    return currentTotal > 0 ? 100 : 0
+  }
+  
+  return ((currentTotal - previousTotal) / Math.abs(previousTotal)) * 100
+})
 
-const validateAmount = (event: Event) => {
-  const input = event.target as HTMLInputElement
-  // Remove all dots and non-digit characters
-  let value = input.value.replace(/\./g, '').replace(/[^\d]/g, '')
+const incomeChangePercent = computed(() => {
+  if (!hasTransactions.value) return 0
   
-  // Convert to number
-  const num = Number(value)
+  const now = new Date()
+  const currentDay = now.getDate()
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
   
-  if (!isNaN(num)) {
-    // Format with thousand separators
-    newTransaction.value.amount = num.toLocaleString('id-ID').replace(/,/g, '.')
+  let currentPeriodStart: Date
+  let previousPeriodStart: Date
+  let currentPeriodEnd: Date
+  let previousPeriodEnd: Date
+  
+  switch (timeRange.value) {
+    case 'week':
+      // Current week (Sunday to Saturday)
+      currentPeriodStart = new Date(now)
+      currentPeriodStart.setDate(currentDay - now.getDay())
+      currentPeriodStart.setHours(0, 0, 0, 0)
+      
+      currentPeriodEnd = new Date(currentPeriodStart)
+      currentPeriodEnd.setDate(currentPeriodStart.getDate() + 6)
+      currentPeriodEnd.setHours(23, 59, 59, 999)
+      
+      // Previous week (Sunday to Saturday)
+      previousPeriodStart = new Date(currentPeriodStart)
+      previousPeriodStart.setDate(previousPeriodStart.getDate() - 7)
+      previousPeriodEnd = new Date(currentPeriodStart)
+      previousPeriodEnd.setHours(23, 59, 59, 999)
+      break
+      
+    case 'month':
+      // Current month
+      currentPeriodStart = new Date(currentYear, currentMonth, 1)
+      currentPeriodEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999)
+      
+      // Previous month
+      previousPeriodStart = new Date(currentYear, currentMonth - 1, 1)
+      previousPeriodEnd = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999)
+      break
+      
+    case 'year':
+      // Current year
+      currentPeriodStart = new Date(currentYear, 0, 1)
+      currentPeriodEnd = new Date(currentYear, 11, 31, 23, 59, 59, 999)
+      
+      // Previous year
+      previousPeriodStart = new Date(currentYear - 1, 0, 1)
+      previousPeriodEnd = new Date(currentYear - 1, 11, 31, 23, 59, 59, 999)
+      break
+      
+    default:
+      currentPeriodStart = new Date(currentYear, currentMonth, 1)
+      currentPeriodEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999)
+      previousPeriodStart = new Date(currentYear, currentMonth - 1, 1)
+      previousPeriodEnd = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999)
+  }
+  
+  // Get current period's income
+  const currentPeriodIncome = transactionStore.transactions
+    .filter(t => {
+      const date = new Date(t.date)
+      return date >= currentPeriodStart && date <= currentPeriodEnd && t.type === 'income'
+    })
+    .reduce((total, t) => total + (t.amount_idr || t.amount), 0)
+  
+  // Get previous period's income
+  const previousPeriodIncome = transactionStore.transactions
+    .filter(t => {
+      const date = new Date(t.date)
+      return date >= previousPeriodStart && date <= previousPeriodEnd && t.type === 'income'
+    })
+    .reduce((total, t) => total + (t.amount_idr || t.amount), 0)
+  
+  // If there was no income in the previous period, return 100% increase if current period has income
+  if (previousPeriodIncome === 0) {
+    return currentPeriodIncome > 0 ? 100 : 0
+  }
+  
+  return ((currentPeriodIncome - previousPeriodIncome) / previousPeriodIncome) * 100
+})
+
+const expenseChangePercent = computed(() => {
+  if (!hasTransactions.value) return 0
+  
+  const now = new Date()
+  const currentDay = now.getDate()
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
+  
+  let currentPeriodStart: Date
+  let previousPeriodStart: Date
+  let currentPeriodEnd: Date
+  let previousPeriodEnd: Date
+  
+  switch (timeRange.value) {
+    case 'week':
+      // Current week (Sunday to Saturday)
+      currentPeriodStart = new Date(now)
+      currentPeriodStart.setDate(currentDay - now.getDay())
+      currentPeriodStart.setHours(0, 0, 0, 0)
+      
+      currentPeriodEnd = new Date(currentPeriodStart)
+      currentPeriodEnd.setDate(currentPeriodStart.getDate() + 6)
+      currentPeriodEnd.setHours(23, 59, 59, 999)
+      
+      // Previous week (Sunday to Saturday)
+      previousPeriodStart = new Date(currentPeriodStart)
+      previousPeriodStart.setDate(previousPeriodStart.getDate() - 7)
+      previousPeriodEnd = new Date(currentPeriodStart)
+      previousPeriodEnd.setHours(23, 59, 59, 999)
+      break
+      
+    case 'month':
+      // Current month
+      currentPeriodStart = new Date(currentYear, currentMonth, 1)
+      currentPeriodEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999)
+      
+      // Previous month
+      previousPeriodStart = new Date(currentYear, currentMonth - 1, 1)
+      previousPeriodEnd = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999)
+      break
+      
+    case 'year':
+      // Current year
+      currentPeriodStart = new Date(currentYear, 0, 1)
+      currentPeriodEnd = new Date(currentYear, 11, 31, 23, 59, 59, 999)
+      
+      // Previous year
+      previousPeriodStart = new Date(currentYear - 1, 0, 1)
+      previousPeriodEnd = new Date(currentYear - 1, 11, 31, 23, 59, 59, 999)
+      break
+      
+    default:
+      currentPeriodStart = new Date(currentYear, currentMonth, 1)
+      currentPeriodEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999)
+      previousPeriodStart = new Date(currentYear, currentMonth - 1, 1)
+      previousPeriodEnd = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999)
+  }
+  
+  // Get current period's expenses
+  const currentPeriodExpenses = transactionStore.transactions
+    .filter(t => {
+      const date = new Date(t.date)
+      return date >= currentPeriodStart && date <= currentPeriodEnd && t.type === 'expense'
+    })
+    .reduce((total, t) => total + (t.amount_idr || t.amount), 0)
+  
+  // Get previous period's expenses
+  const previousPeriodExpenses = transactionStore.transactions
+    .filter(t => {
+      const date = new Date(t.date)
+      return date >= previousPeriodStart && date <= previousPeriodEnd && t.type === 'expense'
+    })
+    .reduce((total, t) => total + (t.amount_idr || t.amount), 0)
+  
+  // If there were no expenses in the previous period, return 100% increase if current period has expenses
+  if (previousPeriodExpenses === 0) {
+    return currentPeriodExpenses > 0 ? 100 : 0
+  }
+  
+  return ((currentPeriodExpenses - previousPeriodExpenses) / previousPeriodExpenses) * 100
+})
+
+const showDetails = ref(false)
+const selectedType = ref<'balance' | 'income' | 'expense'>('balance')
+const currentTotal = ref(0)
+const lastMonthTotal = ref(0)
+const changePercent = ref(0)
+const filteredTransactions = ref<Transaction[]>([])
+
+const detailsTitle = computed(() => {
+  switch (selectedType.value) {
+    case 'balance':
+      return 'Balance Details'
+    case 'income':
+      return 'Income Details'
+    case 'expense':
+      return 'Expense Details'
+    default:
+      return 'Details'
+  }
+})
+
+const changeClass = computed(() => {
+  if (changePercent.value > 0) return 'positive'
+  if (changePercent.value < 0) return 'negative'
+  return 'neutral'
+})
+
+const showDetailsModal = (type: 'balance' | 'income' | 'expense') => {
+  selectedType.value = type
+  const now = new Date()
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
+  
+  // Get current month's transactions
+  const currentMonthTransactions = transactionStore.transactions.filter(t => {
+    const date = new Date(t.date)
+    return date.getMonth() === currentMonth && date.getFullYear() === currentYear
+  })
+  
+  // Get last month's transactions
+  const lastMonthTransactions = transactionStore.transactions.filter(t => {
+    const date = new Date(t.date)
+    return date.getMonth() === currentMonth - 1 && date.getFullYear() === currentYear
+  })
+  
+  // Calculate totals based on type
+  if (type === 'balance') {
+    currentTotal.value = currentMonthTransactions.reduce((total, t) => {
+      const amount = t.amount_idr || t.amount
+      return total + (t.type === 'income' ? amount : -amount)
+    }, 0)
+    
+    lastMonthTotal.value = lastMonthTransactions.reduce((total, t) => {
+      const amount = t.amount_idr || t.amount
+      return total + (t.type === 'income' ? amount : -amount)
+    }, 0)
+    
+    filteredTransactions.value = currentMonthTransactions
   } else {
-    newTransaction.value.amount = ''
-  }
-}
-
-const allowNumbersAndDot = (event: KeyboardEvent) => {
-  const charCode = event.which ? event.which : event.keyCode
-  const input = event.target as HTMLInputElement
-  const value = input.value
-  
-  // Allow numbers (0-9)
-  if (charCode >= 48 && charCode <= 57) {
-    return true
+    currentTotal.value = currentMonthTransactions
+      .filter(t => t.type === type)
+      .reduce((total, t) => total + (t.amount_idr || t.amount), 0)
+    
+    lastMonthTotal.value = lastMonthTransactions
+      .filter(t => t.type === type)
+      .reduce((total, t) => total + (t.amount_idr || t.amount), 0)
+    
+    filteredTransactions.value = currentMonthTransactions.filter(t => t.type === type)
   }
   
-  // Allow backspace and delete
-  if (charCode === 8 || charCode === 46) {
-    return true
+  // Calculate change percentage
+  if (lastMonthTotal.value === 0) {
+    changePercent.value = currentTotal.value > 0 ? 100 : 0
+  } else {
+    changePercent.value = ((currentTotal.value - lastMonthTotal.value) / Math.abs(lastMonthTotal.value)) * 100
   }
-
-  // Prevent any other input
-  event.preventDefault()
-  return false
-}
-
-const fetchTransactions = async () => {
-  try {
-    const response = await axios.get('http://localhost:3000/api/transactions', {
-      headers: { Authorization: `Bearer ${authStore.token}` }
-    })
-    transactions.value = response.data
-  } catch (error) {
-    console.error('Error fetching transactions:', error)
-  }
-}
-
-const fetchCategories = async () => {
-  try {
-    const response = await axios.get('http://localhost:3000/api/categories', {
-      headers: { Authorization: `Bearer ${authStore.token}` }
-    })
-    categories.value = response.data
-  } catch (error) {
-    console.error('Error fetching categories:', error)
-  }
-}
-
-const addTransaction = async () => {
-  transactionError.value = ''
-
-  if (!newTransaction.value.description || !newTransaction.value.amount) {
-    transactionError.value = 'Please fill in all required fields'
-    return
-  }
-
-  // Convert the formatted amount string to a number by removing dots and parsing
-  const amount = Number(newTransaction.value.amount.replace(/\./g, ''))
   
-  if (isNaN(amount) || amount <= 0) {
-    transactionError.value = 'Please enter a valid amount'
-    return
-  }
+  showDetails.value = true
+}
 
+const handleSubmit = async () => {
   try {
-    loading.value = true
-    const response = await axios.post(
-      'http://localhost:3000/api/transactions',
-      {
-        description: newTransaction.value.description,
-        amount: amount,
-        type: newTransaction.value.type,
-        categoryId: newTransaction.value.categoryId || null,
-        currency: newTransaction.value.currency,
-        date: newTransaction.value.date
-      },
-      {
-        headers: { Authorization: `Bearer ${authStore.token}` }
-      }
-    )
-
-    transactions.value.unshift(response.data)
-    showAddTransaction.value = false
-
-    // Emit event to refresh charts
-    emitter.emit('transaction-added')
-
-    // Reset form
+    isLoading.value = true
+    error.value = null
+    await transactionStore.addTransaction(newTransaction.value)
+    showAddTransactionModal.value = false
     newTransaction.value = {
+      type: 'expense' as 'income' | 'expense',
+      amount: 0,
+      category: '',
+      date: new Date().toISOString().split('T')[0],
       description: '',
-      amount: '',
-      type: 'expense',
-      categoryId: '',
-      currency: 'IDR',
-      date: new Date().toISOString().split('T')[0]
+      currency: 'IDR'
     }
-  } catch (error) {
-    console.error('Error adding transaction:', error)
-    transactionError.value = 'Failed to add transaction'
+  } catch (err) {
+    error.value = 'Failed to add transaction. Please try again.'
+    console.error('Error adding transaction:', err)
   } finally {
-    loading.value = false
+    isLoading.value = false
   }
 }
 
-const deleteTransaction = async (transactionId: number) => {
+const selectedTransaction = ref<Transaction | null>(null)
+
+const showTransactionDetails = (transaction: Transaction) => {
+  selectedTransaction.value = transaction
+}
+
+const deleteTransaction = async (transactionId: string) => {
   try {
-    await axios.delete(`http://localhost:3000/api/transactions/${transactionId}`, {
-      headers: { Authorization: `Bearer ${authStore.token}` }
-    })
-    
-    // Remove the transaction from the local list
-    transactions.value = transactions.value.filter(t => t.id !== transactionId)
-    
-    // Close the details modal
+    await transactionStore.deleteTransaction(transactionId)
     selectedTransaction.value = null
-    
-    // Emit event to refresh charts
-    emitter.emit('transaction-added')
+    // Refresh transactions
+    await transactionStore.fetchTransactions()
   } catch (error) {
     console.error('Error deleting transaction:', error)
     alert('Failed to delete transaction')
   }
 }
 
-const logout = async () => {
-  await authStore.logout()
-  router.push('/login')
-}
-
-const toggleSidebar = () => {
-  isSidebarCollapsed.value = !isSidebarCollapsed.value
-}
-
-onMounted(() => {
-  fetchTransactions()
-  fetchCategories()
+onMounted(async () => {
+  try {
+    isLoading.value = true
+    error.value = null
+    await transactionStore.fetchTransactions()
+  } catch (err) {
+    error.value = 'Failed to load transactions. Please refresh the page.'
+    console.error('Error fetching transactions:', err)
+  } finally {
+    isLoading.value = false
+  }
 })
 </script>
 
 <style scoped lang="scss">
 .dashboard {
-  display: flex;
-  min-height: 100vh;
-  background-color: #f7fafc;
-  position: relative;
-  margin: 0;
-  padding: 0;
+  padding: 2rem 0;
 }
 
-.sidebar {
-  width: 240px;
-  background: white;
-  border-right: 1px solid #e2e8f0;
-  display: flex;
-  flex-direction: column;
-  transition: all 0.3s ease;
-  z-index: 10;
-  position: fixed;
-  height: 100vh;
-  left: 0;
-
-  &.collapsed {
-    width: 60px;
-
-    .sidebar-header h1 {
-      opacity: 0;
-    }
-
-    .nav-item {
-      padding: 0.75rem;
-      justify-content: center;
-    }
-
-    .logout-button {
-      padding: 0.75rem;
-      justify-content: center;
-    }
-  }
-}
-
-.sidebar-header {
-  padding: 1.5rem;
-  border-bottom: 1px solid #e2e8f0;
-
-  h1 {
-    margin: 0;
-    font-size: 1.25rem;
-    color: #2d3748;
-    transition: opacity 0.3s ease;
-  }
-}
-
-.sidebar-nav {
-  flex: 1;
-  padding: 1.5rem 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: #4a5568;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    background: #edf2f7;
-  }
-
-  &.active {
-    background: #ebf4ff;
-    color: #4299e1;
-  }
-
-  i {
-    font-size: 1.125rem;
-    width: 1.5rem;
-    text-align: center;
-  }
-}
-
-.sidebar-toggle {
-  position: fixed;
-  left: 240px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 16px;
-  height: 32px;
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-left: none;
-  border-radius: 0 4px 4px 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 20;
-  transition: all 0.3s ease;
-  color: #718096;
-  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
-
-  &:hover {
-    color: #4a5568;
-    background: #f7fafc;
-  }
-
-  &.sidebar-collapsed {
-    left: 60px;
-  }
-
-  i {
-    font-size: 0.75rem;
-  }
-}
-
-.main-content {
-  flex: 1;
-  margin-left: 200px;
-  padding: 1rem;
-  transition: all 0.3s ease;
-  min-height: 100vh;
-
-  &.sidebar-collapsed {
-    margin-left: 60px;
-  }
-}
-
-.balance-overview {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.dashboard-grid {
-  display: flex;
-  gap: 2rem;
-  height: calc(100vh - 200px);
-}
-
-.charts-panel {
-  flex: 1;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.transactions-panel {
-  width: 400px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-}
-
-.transactions-list {
-  flex: 1;
-  overflow-y: auto;
-  margin: 0 -1.5rem;
-  padding: 0 1.5rem;
-
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #cbd5e0;
-    border-radius: 3px;
-
-    &:hover {
-      background: #a0aec0;
-    }
-  }
-
-  .transaction-item {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    transition: all 0.2s ease;
-    cursor: pointer;
-
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-      background: #f1f5f9;
-    }
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
-
-  .transaction-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
-    flex-shrink: 0;
-  }
-
-  .transaction-info {
-    flex: 1;
-    min-width: 0;
-
-    .transaction-main {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 1rem;
-      margin-bottom: 0.75rem;
-
-      .transaction-name {
-        color: #2d3748;
-        font-weight: 600;
-        font-size: 1rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .transaction-amount {
-        font-weight: 600;
-        font-size: 1.125rem;
-        white-space: nowrap;
-
-        &.income {
-          color: #48bb78;
-        }
-
-        &.expense {
-          color: #e53e3e;
-        }
-      }
-    }
-
-    .transaction-details {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-      color: #718096;
-      font-size: 0.875rem;
-
-      .transaction-date {
-        display: flex;
-        align-items: center;
-        gap: 0.375rem;
-
-        i {
-          font-size: 0.875rem;
-          color: #a0aec0;
-        }
-      }
-
-      .transaction-category {
-        padding: 0.25rem 0.75rem;
-        border-radius: 999px;
-        font-size: 0.75rem;
-        font-weight: 500;
-        line-height: 1.25;
-      }
-
-      .transaction-conversion {
-        color: #a0aec0;
-        font-size: 0.75rem;
-        font-weight: 500;
-      }
-    }
-  }
-}
-
-.balance-card {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-
-  .balance-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-  }
-
-  &.main-balance .balance-icon {
-    background-color: #ebf4ff;
-    color: #667eea;
-  }
-
-  &.income .balance-icon {
-    background-color: #f0fff4;
-    color: #48bb78;
-  }
-
-  &.expense .balance-icon {
-    background-color: #fff5f5;
-    color: #e53e3e;
-  }
-
-  .balance-info {
-    h3 {
-      color: #4a5568;
-      font-size: 0.875rem;
-      font-weight: 500;
-      margin: 0 0 0.25rem 0;
-    }
-
-    .amount {
-      color: #2d3748;
-      font-size: 1.5rem;
-      font-weight: 600;
-      margin: 0;
-
-      &.positive {
-        color: #48bb78;
-      }
-
-      &.negative {
-        color: #e53e3e;
-      }
-    }
-  }
-}
-
-.panel-header {
+.header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
 
-  h2 {
-    color: #2d3748;
-    font-size: 1.25rem;
+  h1 {
+    font-size: 2rem;
+    font-weight: 600;
+    color: #1a202c;
     margin: 0;
-  }
-}
-
-.empty-state {
-  text-align: center;
-  padding: 3rem 2rem;
-
-  .empty-state-icon {
-    width: 120px;
-    height: 120px;
-    margin-bottom: 1.5rem;
-  }
-
-  h3 {
-    color: #2d3748;
-    margin: 0 0 0.5rem 0;
-  }
-
-  p {
-    color: #718096;
-    margin-bottom: 1.5rem;
   }
 }
 
 .add-button {
+  display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.625rem 1rem;
+  padding: 0.75rem 1.5rem;
   background-color: #667eea;
   color: white;
   border: none;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s;
-
-  &:hover {
-    background-color: #5a67d8;
-  }
-
-  i {
-    font-size: 0.75rem;
-  }
-}
-
-.logout-button {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 0.75rem 1rem;
-  background-color: #fff5f5;
-  color: #e53e3e;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
+  border-radius: 0.5rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
 
   &:hover {
-    background-color: #fed7d7;
+    background-color: #5a67d8;
+    transform: translateY(-1px);
+  }
+
+  &.small {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
   }
 }
 
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+
+  &.sidebar-expanded {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
-.modal-content {
+.stat-card {
   background: white;
-  border-radius: 12px;
-  width: 100%;
-  max-width: 500px;
-  margin: 2rem;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+
+  .stat-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+
+    h3 {
+      font-size: 1rem;
+      font-weight: 500;
+      color: #4a5568;
+      margin: 0;
+    }
+  }
+
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.75rem;
+    font-size: 1.25rem;
+
+    &.balance {
+      background: #ebf4ff;
+      color: #3182ce;
+    }
+
+    &.income {
+      background: #f0fff4;
+      color: #38a169;
+    }
+
+    &.expense {
+      background: #fff5f5;
+      color: #e53e3e;
+    }
+  }
+
+  .stat-value {
+    font-size: 2rem;
+    font-weight: 600;
+    color: #2d3748;
+    margin-bottom: 1rem;
+
+    &.income {
+      color: #38a169;
+    }
+
+    &.expense {
+      color: #e53e3e;
+    }
+  }
+
+  .stat-trend {
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    
+    &.new-user {
+      color: #718096;
+      font-style: italic;
+    }
+
+    &.positive {
+      color: #48bb78;
+    }
+
+    &.negative {
+      color: #e53e3e;
+    }
+
+    &.neutral {
+      color: #4299e1;
+    }
+  }
 }
 
-.modal-header {
+.content-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.5rem;
+}
+
+.charts-section, .recent-transactions {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.section-header {
   padding: 1.5rem;
   border-bottom: 1px solid #e2e8f0;
   display: flex;
@@ -1043,70 +1112,30 @@ onMounted(() => {
   align-items: center;
 
   h2 {
-    color: #2d3748;
     font-size: 1.25rem;
+    font-weight: 600;
+    color: #2d3748;
     margin: 0;
   }
 }
 
-.close-button {
-  background: none;
-  border: none;
-  color: #a0aec0;
-  cursor: pointer;
-  font-size: 1.25rem;
-  padding: 0.25rem;
-  transition: color 0.2s;
-
-  &:hover {
-    color: #718096;
-  }
-}
-
-.transaction-form {
+.charts-content {
   padding: 1.5rem;
-
-  .form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-  }
 }
 
-.form-group {
-  margin-bottom: 1.5rem;
-
-  label {
-    display: block;
-    margin-bottom: 0.5rem;
-    color: #4a5568;
-    font-weight: 500;
-  }
-}
-
-.amount-input {
-  position: relative;
-
-  .currency-symbol {
-    position: absolute;
-    left: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #4a5568;
-  }
-
-  input {
-    padding-left: 2rem;
-  }
-}
-
-.form-input {
-  width: 100%;
-  padding: 0.75rem;
+.time-range-select {
+  padding: 0.5rem;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
-  font-size: 1rem;
+  color: #4a5568;
+  font-size: 0.875rem;
+  background-color: white;
+  cursor: pointer;
   transition: all 0.2s;
+
+  &:hover {
+    border-color: #cbd5e0;
+  }
 
   &:focus {
     outline: none;
@@ -1115,51 +1144,460 @@ onMounted(() => {
   }
 }
 
-.modal-actions {
+.view-all {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.875rem;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.transactions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.transaction-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  transition: transform 0.2s, background-color 0.2s;
+  cursor: pointer;
+
+  &:hover {
+    transform: translateX(4px);
+    background: #f1f5f9;
+  }
+}
+
+.transaction-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+
+  &.income {
+    background: #f0fff4;
+    color: #38a169;
+  }
+
+  &.expense {
+    background: #fff5f5;
+    color: #e53e3e;
+  }
+}
+
+.transaction-details {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.transaction-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.transaction-category {
+  font-weight: 500;
+  color: #2d3748;
+}
+
+.transaction-description {
+  font-size: 0.875rem;
+  color: #4a5568;
+}
+
+.transaction-date {
+  font-size: 0.75rem;
+  color: #718096;
+}
+
+.transaction-amount {
+  font-weight: 600;
+  color: #2d3748;
+
+  &.income {
+    color: #38a169;
+  }
+
+  &.expense {
+    color: #e53e3e;
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: #718096;
+
+  .empty-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+  }
+
+  p {
+    margin-bottom: 1rem;
+  }
+}
+
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 0.5rem;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+
+  h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #2d3748;
+  }
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: #718096;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+
+  &:hover {
+    background: #f7fafc;
+  }
+}
+
+.transaction-form {
+  padding: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #4a5568;
+  }
+
+  input,
+  select,
+  textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    font-size: 1rem;
+    color: #2d3748;
+    background: white;
+
+    &:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+  }
+}
+
+.form-actions {
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
   margin-top: 2rem;
 }
 
-.submit-button, .cancel-button {
+.cancel-button {
   padding: 0.75rem 1.5rem;
-  border-radius: 6px;
+  background: #edf2f7;
+  color: #4a5568;
+  border: none;
+  border-radius: 0.375rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background: #e2e8f0;
+  }
 }
 
 .submit-button {
-  background-color: #667eea;
+  padding: 0.75rem 1.5rem;
+  background: #667eea;
   color: white;
   border: none;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
 
   &:hover {
-    background-color: #5a67d8;
-  }
-
-  &:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
+    background: #5a67d8;
   }
 }
 
-.cancel-button {
-  background-color: #edf2f7;
-  color: #4a5568;
-  border: none;
-
-  &:hover {
-    background-color: #e2e8f0;
-  }
-}
-
-.error-message {
-  color: #e53e3e;
+.loading-state {
   text-align: center;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
+  padding: 2rem;
+  color: #718096;
+
+  .loading-spinner {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto 1rem;
+    border: 3px solid #e2e8f0;
+    border-top-color: #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+}
+
+.error-state {
+  text-align: center;
+  padding: 2rem;
+  color: #e53e3e;
+
+  .error-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+  }
+
+  p {
+    margin-bottom: 1rem;
+  }
+}
+
+.retry-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: #e53e3e;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: #c53030;
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 1024px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    
+    &.sidebar-expanded {
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard {
+    padding: 0.5rem;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+
+    h1 {
+      font-size: 1.5rem;
+    }
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .stat-card {
+    padding: 1rem;
+
+    .stat-value {
+      font-size: 1.5rem;
+    }
+  }
+
+  .content-grid {
+    gap: 1rem;
+  }
+
+  .section-header {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+
+    h2 {
+      font-size: 1.25rem;
+    }
+  }
+
+  .time-range-select {
+    width: 100%;
+  }
+
+  .modal-content {
+    width: 95%;
+    margin: 1rem;
+  }
+
+  .form-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+
+    button {
+      width: 100%;
+    }
+  }
+}
+
+.details-modal {
+  max-width: 800px;
+  max-height: 90vh;
+}
+
+.details-content {
+  padding: 1.5rem;
+}
+
+.details-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #f8fafc;
+  border-radius: 0.75rem;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+
+  .label {
+    font-size: 0.875rem;
+    color: #718096;
+    margin-bottom: 0.5rem;
+  }
+
+  .value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #2d3748;
+
+    &.income {
+      color: #38a169;
+    }
+
+    &.expense {
+      color: #e53e3e;
+    }
+
+    &.positive {
+      color: #48bb78;
+    }
+
+    &.negative {
+      color: #e53e3e;
+    }
+
+    &.neutral {
+      color: #4299e1;
+    }
+  }
+}
+
+.details-chart {
+  margin-bottom: 2rem;
+
+  h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #2d3748;
+    margin-bottom: 1rem;
+  }
+}
+
+.chart-placeholder {
+  height: 200px;
+  background: #f8fafc;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #718096;
+}
+
+.details-list {
+  h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #2d3748;
+    margin-bottom: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .details-summary {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
 }
 
 .transaction-details-modal {
@@ -1214,32 +1652,20 @@ onMounted(() => {
       }
     }
   }
+}
 
-  .type-badge {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    border-radius: 999px;
-    font-size: 0.875rem;
-    font-weight: 500;
+.conversion {
+  display: block;
+  color: #718096;
+  font-weight: normal;
+  font-size: 0.75rem;
+}
 
-    &.income {
-      background-color: #f0fff4;
-      color: #48bb78;
-    }
-
-    &.expense {
-      background-color: #fff5f5;
-      color: #e53e3e;
-    }
-  }
-
-  .category-badge {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    border-radius: 999px;
-    font-size: 0.875rem;
-    font-weight: 500;
-  }
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
 }
 
 .delete-button {
@@ -1255,115 +1681,24 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 2rem;
   width: 100%;
   justify-content: center;
 
   &:hover {
     background-color: #fed7d7;
   }
-
-  svg {
-    font-size: 1rem;
-  }
 }
 
-@media (max-width: 1280px) {
-  .dashboard-grid {
-    flex-direction: column;
-    height: auto;
-  }
-
-  .transactions-panel {
-    width: 100%;
-    height: 500px;
-  }
-
-  .charts-panel {
-    height: 500px;
-  }
-
-  .balance-overview {
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  }
-}
-
-@media (max-width: 1024px) {
-  .sidebar {
-    transform: translateX(-100%);
-    transition: transform 0.3s ease;
-
-    &.open {
-      transform: translateX(0);
-    }
-  }
-
-  .sidebar-toggle {
-    display: none;
-  }
-
-  .main-content {
-    margin-left: 0;
-    width: 100%;
-    padding: 1.5rem;
-  }
-}
-
-@media (max-width: 640px) {
-  .main-content {
-    padding: 1rem;
-  }
-
-  .balance-overview {
-    grid-template-columns: 1fr;
-  }
-
-  .dashboard-grid {
-    gap: 1rem;
-  }
-
-  .charts-panel,
-  .transactions-panel {
-    padding: 1rem;
-  }
-
-  .transactions-list {
-    margin: 0 -1rem;
-    padding: 0 1rem;
-
-    .transaction-item {
-      padding: 0.875rem;
-    }
-
-    .transaction-icon {
-      width: 40px;
-      height: 40px;
-      font-size: 1rem;
-    }
-
-    .transaction-info {
-      .transaction-main {
-        flex-direction: column;
-        gap: 0.375rem;
-
-        .transaction-amount {
-          font-size: 1rem;
-        }
-      }
-
-      .transaction-details {
-        gap: 0.5rem;
-      }
-    }
-  }
-
+@media (max-width: 768px) {
   .details-grid {
     grid-template-columns: 1fr;
-    gap: 1rem;
   }
+}
 
-  .transaction-details-content {
-    padding: 1.5rem;
-  }
+.category-text {
+  color: #2d3748;
+  font-size: 1rem;
+  font-weight: 500;
+  margin: 0;
 }
 </style> 
