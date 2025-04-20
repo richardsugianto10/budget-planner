@@ -1,0 +1,18 @@
+app:
+  name: budget-planner-api
+
+build:
+  builder: nixpacks
+  buildCommand: cd budget-planner-api && npm install --production
+
+run:
+  command: cd budget-planner-api && npm start
+  port: 3000
+
+env:
+  - name: NODE_ENV
+    value: production
+  - name: DATABASE_URL
+    value: postgresql://neondb_owner:npg_woBfvjpC1r4k@ep-tiny-boat-a1cnkt7n-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+  - name: PORT
+    value: "3000" 
