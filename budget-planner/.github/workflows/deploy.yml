@@ -24,17 +24,26 @@ jobs:
           cache: 'npm'
           
       - name: Install dependencies
-        run: npm install
+        run: |
+          cd budget-planner
+          npm install
         
       - name: Build
-        run: npm run build
+        run: |
+          cd budget-planner
+          npm run build
         env:
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+      
+      - name: Create .nojekyll file
+        run: |
+          cd budget-planner
+          touch dist/.nojekyll
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
+          path: ./budget-planner/dist
 
   deploy:
     environment:
