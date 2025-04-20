@@ -7,13 +7,29 @@ const categoryRoutes = require('./routes/categories');
 const uploadRoutes = require('./routes/upload');
 const checkBlacklist = require('./middleware/checkBlacklist');
 
-require('dotenv').config();
-
 const app = express();
 
+// CORS configuration
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.FRONTEND_URL 
+    : 'http://localhost:5173',
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
+
+// Security headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  next();
+});
 
 // Global error handler
 app.use((err, req, res, next) => {
@@ -38,7 +54,7 @@ app.get('/health', (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 const server = app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server is running on port ${PORT} in ${process.env.NODE_ENV} mode`);
 });
 
 // Handle unhandled promise rejections
