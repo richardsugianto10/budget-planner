@@ -6,7 +6,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/bidget-planner/',
+  base: '/budget-planner/',
   plugins: [
     vue(),
     vueDevTools(),
