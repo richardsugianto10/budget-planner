@@ -15,4 +15,8 @@ env:
   - name: DATABASE_URL
     value: postgresql://neondb_owner:npg_woBfvjpC1r4k@ep-tiny-boat-a1cnkt7n-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
   - name: PORT
-    value: "3000" 
+    value: "3000"
+  - name: CORS_ORIGIN
+    value: "https://richardsugianto10.github.io"
+  - name: CORS_ENABLED
+    value: "true" 
