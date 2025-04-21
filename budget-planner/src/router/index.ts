@@ -6,7 +6,7 @@ import RegisterView from '../views/RegisterView.vue'
 import TransactionsView from '../views/TransactionsView.vue'
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHistory('/budget-planner/'),
   routes: [
     {
       path: '/',
