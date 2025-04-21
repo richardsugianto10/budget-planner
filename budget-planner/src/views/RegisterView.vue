@@ -93,14 +93,22 @@ const handleSubmit = async () => {
     }
 
     loading.value = true
-    await authStore.register({
+    console.log('Starting registration process...')
+    
+    const result = await authStore.register({
       username: username.value,
       email: email.value,
       password: password.value
     })
-    router.push('/dashboard')
+
+    console.log('Registration result:', result)
+    
+    if (result?.success) {
+      router.push('/dashboard')
+    }
   } catch (error: any) {
-    errorMessage.value = error.response?.data?.message || 'Registration failed'
+    console.error('Registration error in component:', error)
+    errorMessage.value = error.message || 'Registration failed. Please try again.'
   } finally {
     loading.value = false
   }

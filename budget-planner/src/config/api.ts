@@ -1,13 +1,11 @@
 // API Configuration
 const API_CONFIG = {
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api',
+  baseURL: 'https://deafening-bernadina-richardsugianto10-3883eb13.koyeb.app/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    'X-Requested-With': 'XMLHttpRequest'
-  },
-  withCredentials: false // Temporarily disable for testing
+    'Accept': 'application/json'
+  }
 }
 
 export default API_CONFIG 

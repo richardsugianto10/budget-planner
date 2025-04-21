@@ -64,11 +64,24 @@ export const useAuthStore = defineStore('auth', {
 
     async register(data: RegisterData) {
       try {
-        const response = await api.post('/auth/register', data)
-        this.setToken(response.data.token)
-        this.user = response.data.user
-      } catch (error) {
-        throw error
+        console.log('Attempting registration with:', { ...data, password: '[REDACTED]' });
+        const response = await api.post('/auth/register', data);
+        console.log('Registration response:', response.data);
+        
+        if (response.data.token) {
+          this.setToken(response.data.token);
+          this.user = response.data.user;
+          return { success: true };
+        } else {
+          throw new Error('No token received from server');
+        }
+      } catch (error: any) {
+        console.error('Registration error:', error.response || error);
+        throw {
+          message: error.response?.data?.message || 'Registration failed',
+          status: error.response?.status,
+          details: error.response?.data
+        };
       }
     },
 
