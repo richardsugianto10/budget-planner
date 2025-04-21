@@ -6,7 +6,7 @@ const API_CONFIG = {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
   },
-  withCredentials: true
+  withCredentials: false // Temporarily disable for testing
 }
 
 export default API_CONFIG 
