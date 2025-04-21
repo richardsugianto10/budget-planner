@@ -7,8 +7,16 @@ const uploadRoutes = require('./routes/upload');
 
 const app = express();
 
+// CORS configuration
+const corsOptions = {
+  origin: ['https://richardsugianto10.github.io'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
