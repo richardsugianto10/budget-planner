@@ -11,9 +11,12 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    // Add origin header
+    config.headers['Origin'] = window.location.origin
     return config
   },
   (error) => {
+    console.error('Request error:', error)
     return Promise.reject(error)
   }
 )
@@ -22,6 +25,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    console.error('Response error:', error)
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
       window.location.href = '/login'
